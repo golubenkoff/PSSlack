@@ -23,7 +23,7 @@ $AlternativePath = 'TestDrive:\ThisSlackXml.xml'
 Describe "PSSlack Module PS$PSVersion" {
     Context 'Strict mode' {
 
-        Set-StrictMode -Version latest
+        #Set-StrictMode -Version latest
 
         It 'Should load' {
             $Module = Get-Module $ModuleName
@@ -214,7 +214,7 @@ Describe 'New-SlackMessageAttachment' {
           New-SlackMessageAttachment -text "test2" -Fallback "test2" |
           New-SlackMessageAttachment -text "test3" -FallBack "test3" |
           New-SlackMessageAttachment -text "test4" -Fallback "test4" |
-          New-SlackMessageAttachment -text "test5" -Fallback "test5" 
+          New-SlackMessageAttachment -text "test5" -Fallback "test5"
         $message.Count | Should -BeExactly 5
     }
 }

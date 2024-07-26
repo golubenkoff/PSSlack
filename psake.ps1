@@ -36,7 +36,8 @@ Task Test -Depends Init  {
 
     # Gather test results. Store them in a variable and file
     $TestResults = Invoke-Pester -Path $ProjectRoot\Tests -PassThru -OutputFormat NUnitXml -OutputFile "$ProjectRoot\$TestFile"
-
+    Remove-Module -Name Pester
+    Import-Module -Name Pester -RequiredVersion '4.10.1'
     # In Appveyor?  Upload our tests! #Abstract this into a function?
     If($ENV:BHBuildSystem -eq 'AppVeyor')
     {
