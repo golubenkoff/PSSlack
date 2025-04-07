@@ -47,84 +47,90 @@
         [switch]$ExcludeBots,
         [switch]$Raw
     )
-    begin
-    {
-        $body = @{}
-        if($Presence)
-        {
-            $body.add('presence', 1)
+    begin {
+
+        $RawUsers = [PsCustomObject]@{
+            members = @()
         }
 
-        $params = @{
-            Token = $Token
-            Method = 'users.list'
+        $body = @{
+            limit = 999
         }
-        if($body.keys.count -gt 0)
-        {
-            $params.add('body', $Body)
-        }
-        $RawUsers = Send-SlackApi @params
+
+
+        do {
+
+            $params = @{
+                Token  = $Token
+                Method = 'users.list'
+            }
+
+            if ($Presence) {
+                $body.add('presence', 1)
+            }
+
+            if ($body.keys.count -gt 0) {
+                $params.add('body', $Body)
+            }
+
+            $RawApiUsers = $null ; $RawApiUsers = Send-SlackApi @params
+            if ($RawApiUsers) {
+                $RawUsers.members += $RawApiUsers.members
+            }
+
+
+            $body = @{
+                limit  = 999
+                cursor = $RawApiUsers.response_metadata.next_cursor
+            }
+
+        }while ($RawApiUsers.response_metadata.next_cursor)
+
 
         $HasWildCard = $False
-        foreach($Item in $Name)
-        {
-            if($Item -match '\*')
-            {
+        foreach ($Item in $Name) {
+            if ($Item -match '\*') {
                 $HasWildCard = $true
                 break
             }
         }
 
-        if($Billing)
-        {
+        if ($Billing) {
             $BillingInfo = Send-SlackApi -Token $Token -Method team.billableInfo
             $UserIDs = $BillingInfo.billable_info.psobject.properties.name
-            foreach($User in $RawUsers.members)
-            {
+            foreach ($User in $RawUsers.members) {
                 $UserId = $User.Id
-                if($UserIDs -contains $UserId)
-                {
+                if ($UserIDs -contains $UserId) {
                     Add-Member -InputObject $User -MemberType NoteProperty -Name BillingActive -Value $BillingInfo.billable_info.$UserId.billing_active -Force
                 }
             }
         }
 
-        if($Name -and -not $HasWildCard)
-        {
+        if ($Name -and -not $HasWildCard) {
             # torn between independent queries, or filtering users.list
             # submit a PR if this isn't performant enough or doesn't make sense.
             $Users = $RawUsers.members |
-                Where-Object {$Name -Contains $_.name}
-        }
-        elseif ($Name -and $HasWildCard)
-        {
+                Where-Object { $Name -Contains $_.name }
+        } elseif ($Name -and $HasWildCard) {
             $AllUsers = $RawUsers.members
 
             # allow like operator on each channel requested in the param, avoid dupes
             $UserHash = [ordered]@{}
-            foreach($SlackUser in $AllUsers)
-            {
-                foreach($Username in $Name)
-                {
-                    if($SlackUser.Name -like $Username -and -not $UserHash.Contains($SlackUser.id))
-                    {
+            foreach ($SlackUser in $AllUsers) {
+                foreach ($Username in $Name) {
+                    if ($SlackUser.Name -like $Username -and -not $UserHash.Contains($SlackUser.id)) {
                         $UserHash.Add($SlackUser.Id, $SlackUser)
                     }
                 }
             }
             $Users = $UserHash.Values
-        }
-        else # nothing specified
-        {
+        } else { # nothing specified
             $Users = $RawUsers.members
         }
 
-        if($Raw)
-        {
+        if ($Raw) {
             $RawUsers
-        }
-        else
-        {
+        } else {
             Parse-SlackUser -InputObject $Users
         }
     }
